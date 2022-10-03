@@ -9,6 +9,8 @@ import pandas as pd
 import requests
 import io
 
+from scipy.sparse import csr_matrix
+from scipy.sparse.csgraph import dijkstra
 from collections import Counter
 
 line = "======="*5
@@ -29,13 +31,15 @@ def liste_mots_par_commentaire(comments) :
 
 def liste_mots_exhaustive(comments) : 
     '''
-    Renvoie une liste qui contient tous les mots employés dans comments avec répétition
+    Renvoie une liste qui contient tous les mots employés dans comments sans répétition
     '''
     liste_de_mots = []
     for comment in comments : 
         phrase = comment.split(sep=" ")
         for mot in phrase :
-            liste_de_mots.append(mot)
+            # ajoute si le mot n'était pas présent dans la liste
+            if mot not in liste_de_mots :    
+                liste_de_mots.append(mot)
             #print(liste_de_mots)
     # ajouter un "." car utile après
     liste_de_mots.append(".")
@@ -65,9 +69,13 @@ def mots_accessibles(cle, liste_mots_par_commentaire) :
       
                 #print(mot_a_droite)
                 # ajoute à la liste des mots accessibles depuis la clé
-                liste_mots_accessibles.append(mot_a_droite)
+                # si le mot n'est pas déja dans la liste
+                if mot_a_droite not in liste_mots_accessibles :
+                    liste_mots_accessibles.append(mot_a_droite)
+                    
             else : 
                 pass
+            
     return liste_mots_accessibles
 
 def dict_mots_accessibles(liste_mots_exhaustive, liste_mots_par_commentaire) :
@@ -106,12 +114,15 @@ def vect_freq(cle, liste_mots_exhaustive, liste_mots_par_commentaire) :
 
 def dico_freq(liste_mots_exhaustive, liste_mots_par_commentaire) :
     # retourne un dictionnaire des frequences des mots à droite
-    Dico_freq = {}
+    Dico_freq = dict()
     
-    for mot in liste_mots_exhaustive : 
-        Dico_freq[mot] = vect_freq(mot, liste_mots_exhaustive, liste_mots_par_commentaire)
+    #for mot in liste_mots_exhaustive : 
+    #    Dico_freq[mot] = vect_freq(mot, liste_mots_exhaustive, liste_mots_par_commentaire)
     
-    #print(Dico_freq)
+    for j in range(len(liste_mots_exhaustive)) :
+        mot_cle = liste_mots_exhaustive[j]
+        Dico_freq[mot_cle] = vect_freq(mot_cle, liste_mots_exhaustive, liste_mots_par_commentaire)
+    
     return Dico_freq
 
 
@@ -123,7 +134,7 @@ def preparation_commentaires(comments) :
     une colonne de commentaires format pandas
     -----------
     renvoie :
-    1- la liste exhaustive des mots
+    1- la liste exhaustive des mots uniques
     2- un dictionnaire des mots accessibles de puis chaque mot : voisins sortants
     3- une matrice des frequences/probas : poids
     '''
@@ -132,6 +143,7 @@ def preparation_commentaires(comments) :
     
     d_mots_access = dict_mots_accessibles(l_mots_uniques, l_mpc)
     d_freq_mots_access = dico_freq(l_mots_uniques, l_mpc) 
+    
     
     print(line)
     print("LISTE DES EXHAUSTIVE MOTS")
@@ -151,20 +163,20 @@ def preparation_commentaires(comments) :
     print("FREQ DES MOTS SUIVANTS")
     # conversion en numpy array 
     print(np.array(mat_freq))
-    print(len(mat_freq[1]))
     
-    return l_mots_uniques, d_mots_access, 
+    
+    return l_mots_uniques, d_mots_access, np.array(mat_freq)
     
 if __name__=="__main__" :
     # Lecture de la bdd
-    url = "https://raw.githubusercontent.com/fereol023/My-ML-Courses-/main/vp_debate.csv"
+    url = "https://raw.githubusercontent.com/fereol023/Comments-generator/main/vp_debate.csv"
     download = requests.get(url).content
     df = pd.read_csv(io.StringIO(download.decode()))
     print(df.head(10))
     
     # selction de la colonne de commentaires
     comments = df['comments'].values
-    comments = comments[:50,]
+    comments = comments[100:150,]
     print(comments)
     
     #liste_mots_par_commentaire = liste_mots_par_commentaire(comments)
@@ -196,4 +208,20 @@ if __name__=="__main__" :
     #vect_freq("famous", liste_mots_exhaustive, liste_mots_par_commentaire)
     #dico_freq(liste_mots_exhaustive, liste_mots_par_commentaire)
     
-    preparation_commentaires(comments)
+    e1, e2, e3 = preparation_commentaires(comments)
+
+    #################
+    # instancier un graphe avec la matrice eparse
+    G = csr_matrix(e3)
+    # appliquer l'algo de dijkstra
+    dist_matrix, predecessors = dijkstra (csgraph = G, directed = True,
+                                          return_predecessors = True)
+    print(line)
+    print("MATRICE DES DISTANCES")
+    print(dist_matrix)
+    print("Taille de la matrice : ", dist_matrix.shape)
+    
+    
+    # *****************************
+    #->selectionner uniquement les mots qui ont une longueur mamximale de 10 lettres (moyenne en anglais)
+    

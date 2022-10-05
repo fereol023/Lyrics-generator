@@ -9,9 +9,14 @@ import pandas as pd
 import requests
 import io
 
+import networkx as nx
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import dijkstra
+import matplotlib.pyplot as plt
 from collections import Counter
+
+# module complémentaire
+from networkx_base import generation_couleur_aleatoire, generation_couleur_aretes_aleatoire, change_taille_sommets
 
 line = "======="*5
 
@@ -145,45 +150,93 @@ def preparation_commentaires(comments) :
     d_freq_mots_access = dico_freq(l_mots_uniques, l_mpc) 
     
     
-    print(line)
-    print("LISTE DES EXHAUSTIVE MOTS")
-    print(l_mots_uniques)
-    print(len(l_mots_uniques))
-    print(line)
-    print("DICT DES MOTS SUIVANTS")
-    for d in d_mots_access.items():
-        print(d)
+    #print(line)
+    #print("LISTE DES EXHAUSTIVE MOTS")
+    #print(l_mots_uniques)
+    #print(len(l_mots_uniques))
+    #print(line)
+    #print("DICT DES MOTS SUIVANTS")
+    #for d in d_mots_access.items():
+    #    print(d)
     
     mat_freq = []
     # ajouer la liste des frequences pour faire un tableau
     for elt in d_freq_mots_access.values() :
         mat_freq.append(elt)
     
-    print(line)
-    print("FREQ DES MOTS SUIVANTS")
+    mat_freq = np.array(mat_freq)
+    #mat_freq = mat_freq/np.sum(mat_freq, axis=)
+    #print(np.sum(mat_freq, axis=1))
+    #print(line)
+    #print("FREQ DES MOTS SUIVANTS")
     # conversion en numpy array 
-    print(np.array(mat_freq))
+    #print(mat_freq)
+    #print("Taille de la matrice : ",mat_freq.shape)
+    #print(np.sum(mat_freq, axis=1)[-1])
+    return l_mots_uniques, d_mots_access, mat_freq
+
+def gen_graph(dict_mots_accessibles) :
     
+    G = nx.DiGraph()
+    # ajout des sommets au graphe
+    G.add_nodes_from(list(dict_mots_accessibles.keys()))
+    # création des aretes
+    for key in dict_mots_accessibles.keys() :
+        mots_access = dict_mots_accessibles[key]
+        for v in mots_access :
+            G.add_edge(key, v)
     
-    return l_mots_uniques, d_mots_access, np.array(mat_freq)
+    # dessin
     
+    color_map = generation_couleur_aleatoire(G)
+    color_map_aretes = generation_couleur_aretes_aleatoire(G)
+    node_s = change_taille_sommets(G)
+    nx.draw(G, with_labels=False, node_size=node_s,node_color=color_map,edge_color=color_map_aretes)
+
+    plt.savefig('plotgraph.png', dpi=300)
+    plt.show()
+    
+def gen_graph2(liste_mots_uniques, dico_mots_accessibles, mat_freq) :
+    
+    G = nx.Graph()
+    # ajout des sommets au graphe
+    G.add_nodes_from(list(dict_mots_accessibles.keys()))
+    # création des aretes
+    for key in dict_mots_accessibles.keys() :
+        mots_access = dict_mots_accessibles[key]
+        for v in mots_access :
+            G.add_edge(key, v)
+        
+    # dessin  
+    color_map = generation_couleur_aleatoire(G)
+    color_map_aretes = generation_couleur_aretes_aleatoire(G)
+    node_s = change_taille_sommets(G)
+    
+    nx.draw(G, with_labels=False, node_size=node_s,node_color=color_map,edge_color=color_map_aretes)
+    plt.show()
+
 if __name__=="__main__" :
     # Lecture de la bdd
     url = "https://raw.githubusercontent.com/fereol023/Comments-generator/main/vp_debate.csv"
     download = requests.get(url).content
     df = pd.read_csv(io.StringIO(download.decode()))
     print(df.head(10))
+    print(df.shape)
     
     # selction de la colonne de commentaires
     comments = df['comments'].values
-    comments = comments[100:150,]
+    comments = comments[250:260,]  # 150 à 151 160 170:172 # peu pas afficher + de 500 points
     print(comments)
     
-    #liste_mots_par_commentaire = liste_mots_par_commentaire(comments)
-    #print(liste_mots_par_commentaire)
+    liste_mots_par_commentaire = liste_mots_par_commentaire(comments)
+    print(liste_mots_par_commentaire)
     
-    #liste_mots_exhaustive = liste_mots_exhaustive(comments)
-    #print(liste_mots_exhaustive)
+    liste_mots_exhaustive = liste_mots_exhaustive(comments)
+    print(liste_mots_exhaustive)
+    print(len(liste_mots_exhaustive))
+    
+    dico_mots_accessibles = dict_mots_accessibles(liste_mots_exhaustive, liste_mots_par_commentaire)
+    gen_graph(dico_mots_accessibles)
 
     # compteur de mots et renvoie un dict avec le nombre d'occurences
     #occurrences = Counter(liste_mots_exhaustive)
@@ -208,20 +261,22 @@ if __name__=="__main__" :
     #vect_freq("famous", liste_mots_exhaustive, liste_mots_par_commentaire)
     #dico_freq(liste_mots_exhaustive, liste_mots_par_commentaire)
     
-    e1, e2, e3 = preparation_commentaires(comments)
+    #e1, e2, e3 = preparation_commentaires(comments)
 
     #################
     # instancier un graphe avec la matrice eparse
-    G = csr_matrix(e3)
+    #G = csr_matrix(e3)
     # appliquer l'algo de dijkstra
-    dist_matrix, predecessors = dijkstra (csgraph = G, directed = True,
-                                          return_predecessors = True)
-    print(line)
-    print("MATRICE DES DISTANCES")
-    print(dist_matrix)
-    print("Taille de la matrice : ", dist_matrix.shape)
+    #dist_matrix, predecessors = dijkstra (csgraph = G, directed = True,
+    #                                      return_predecessors = True)
+    #print(line)
+    #print("MATRICE DES DISTANCES")
+    #print(dist_matrix)
+    #print("Taille de la matrice : ", dist_matrix.shape)
+    
     
     
     # *****************************
     #->selectionner uniquement les mots qui ont une longueur mamximale de 10 lettres (moyenne en anglais)
+    
     

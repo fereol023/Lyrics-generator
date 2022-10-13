@@ -140,7 +140,7 @@ def preparation_commentaires(comments) :
     -----------
     renvoie :
     1- la liste exhaustive des mots uniques
-    2- un dictionnaire des mots accessibles de puis chaque mot : voisins sortants
+    2- un dictionnaire des mots accessibles depuis chaque mot : voisins sortants
     3- une matrice des frequences/probas : poids
     '''
     l_mpc = liste_mots_par_commentaire(comments)
@@ -150,14 +150,14 @@ def preparation_commentaires(comments) :
     d_freq_mots_access = dico_freq(l_mots_uniques, l_mpc) 
     
     
-    #print(line)
-    #print("LISTE DES EXHAUSTIVE MOTS")
-    #print(l_mots_uniques)
-    #print(len(l_mots_uniques))
-    #print(line)
-    #print("DICT DES MOTS SUIVANTS")
-    #for d in d_mots_access.items():
-    #    print(d)
+    print(line)
+    print("LISTE DES EXHAUSTIVE MOTS")
+    print(l_mots_uniques)
+    print(len(l_mots_uniques))
+    print(line)
+    print("DICT DES MOTS SUIVANTS")
+    for d in d_mots_access.items():
+        print(d)
     
     mat_freq = []
     # ajouer la liste des frequences pour faire un tableau
@@ -167,12 +167,12 @@ def preparation_commentaires(comments) :
     mat_freq = np.array(mat_freq)
     #mat_freq = mat_freq/np.sum(mat_freq, axis=)
     #print(np.sum(mat_freq, axis=1))
-    #print(line)
-    #print("FREQ DES MOTS SUIVANTS")
+    print(line)
+    print("FREQ DES MOTS SUIVANTS")
     # conversion en numpy array 
-    #print(mat_freq)
-    #print("Taille de la matrice : ",mat_freq.shape)
-    #print(np.sum(mat_freq, axis=1)[-1])
+    print(mat_freq)
+    print("Taille de la matrice : ",mat_freq.shape)
+    print(np.sum(mat_freq, axis=1)[-1])
     return l_mots_uniques, d_mots_access, mat_freq
 
 def gen_graph(dict_mots_accessibles) :
@@ -187,7 +187,6 @@ def gen_graph(dict_mots_accessibles) :
             G.add_edge(key, v)
     
     # dessin
-    
     color_map = generation_couleur_aleatoire(G)
     color_map_aretes = generation_couleur_aretes_aleatoire(G)
     node_s = change_taille_sommets(G)
@@ -195,25 +194,58 @@ def gen_graph(dict_mots_accessibles) :
 
     plt.savefig('plotgraph.png', dpi=300)
     plt.show()
-    
-def gen_graph2(liste_mots_uniques, dico_mots_accessibles, mat_freq) :
-    
-    G = nx.Graph()
+
+def gen_graph2(liste_mot_unique, dict_mots_accessibles, mat_freq) :
+
+    G = nx.DiGraph()
     # ajout des sommets au graphe
     G.add_nodes_from(list(dict_mots_accessibles.keys()))
     # création des aretes
-    for key in dict_mots_accessibles.keys() :
+    for key in dict_mots_accessibles.keys():
         mots_access = dict_mots_accessibles[key]
-        for v in mots_access :
-            G.add_edge(key, v)
-        
-    # dessin  
+        for v in mots_access:
+            ind_row = liste_mot_unique.index(key)
+            ind_col = liste_mot_unique.index(v)
+            # recuperer le poids depuis la matrice
+            poids = mat_freq[ind_row, ind_col]
+            # creer l'arete
+            G.add_edge(key, v, weight=poids)
+            #G.add_edge(key, v)
+
+    # dessin
     color_map = generation_couleur_aleatoire(G)
     color_map_aretes = generation_couleur_aretes_aleatoire(G)
     node_s = change_taille_sommets(G)
-    
     nx.draw(G, with_labels=False, node_size=node_s,node_color=color_map,edge_color=color_map_aretes)
+    plt.savefig('plotgraph.png', dpi=300)
     plt.show()
+
+def creer_phrase1(mat_dist, liste_mots_uniq):
+
+    longueur_phrase = 5
+    indice_depart = 0
+    k = 0
+    phrase = []
+    ligne = mat_dist[indice_depart, ]
+    phrase.append(liste_mots_uniq[indice_depart])
+
+    while k < longueur_phrase:
+        # indice de la distance minimale sur la ligne
+        indice_min = np.argmin(ligne)
+        # test sur la distance minimum
+        d_min = ligne[indice_min]
+        # si c'est 0 alors retirer d_min de la liste et refaire argmin
+        if d_min == 0:
+            d_min = 1
+        print(d_min)
+        # recupérer le mot et l'ajouter à la phrase
+        print(indice_min)
+        phrase.append(liste_mots_uniq[indice_min])
+        # aller à la ligne du mot ayant cet indice
+        ligne = mat_dist[indice_min, ]
+        k += 1
+    print('ok')
+    return phrase
 
 if __name__=="__main__" :
     # Lecture de la bdd
@@ -225,18 +257,18 @@ if __name__=="__main__" :
     
     # selction de la colonne de commentaires
     comments = df['comments'].values
-    comments = comments[250:260,]  # 150 à 151 160 170:172 # peu pas afficher + de 500 points
+    comments = comments[150:172,]  # 150 à 151 160 170:172 # peu pas afficher + de 500 points
     print(comments)
     
-    liste_mots_par_commentaire = liste_mots_par_commentaire(comments)
-    print(liste_mots_par_commentaire)
-    
-    liste_mots_exhaustive = liste_mots_exhaustive(comments)
-    print(liste_mots_exhaustive)
-    print(len(liste_mots_exhaustive))
-    
-    dico_mots_accessibles = dict_mots_accessibles(liste_mots_exhaustive, liste_mots_par_commentaire)
-    gen_graph(dico_mots_accessibles)
+    # liste_mots_par_commentaire = liste_mots_par_commentaire(comments)
+    # print(liste_mots_par_commentaire)
+    #
+    # liste_mots_exhaustive = liste_mots_exhaustive(comments)
+    # print(liste_mots_exhaustive)
+    # print(len(liste_mots_exhaustive))
+    #
+    # dico_mots_accessibles = dict_mots_accessibles(liste_mots_exhaustive, liste_mots_par_commentaire)
+    # gen_graph(dico_mots_accessibles)
 
     # compteur de mots et renvoie un dict avec le nombre d'occurences
     #occurrences = Counter(liste_mots_exhaustive)
@@ -261,22 +293,28 @@ if __name__=="__main__" :
     #vect_freq("famous", liste_mots_exhaustive, liste_mots_par_commentaire)
     #dico_freq(liste_mots_exhaustive, liste_mots_par_commentaire)
     
-    #e1, e2, e3 = preparation_commentaires(comments)
+    e1, e2, e3 = preparation_commentaires(comments)
+
+    gen_graph2(e1, e2, e3)
 
     #################
     # instancier un graphe avec la matrice eparse
-    #G = csr_matrix(e3)
+    M = csr_matrix(e3)
     # appliquer l'algo de dijkstra
-    #dist_matrix, predecessors = dijkstra (csgraph = G, directed = True,
-    #                                      return_predecessors = True)
-    #print(line)
-    #print("MATRICE DES DISTANCES")
-    #print(dist_matrix)
-    #print("Taille de la matrice : ", dist_matrix.shape)
-    
-    
-    
+    dist_matrix, predecessors = dijkstra(csgraph=M, directed=True, return_predecessors=True)
+    print(line)
+    print("MATRICE DES DISTANCES")
+    print(dist_matrix)
+    print(line)
+    print("MATRICE DES PREDECESSEURS")
+    print(predecessors)
+    print("Taille de la matrice : ", dist_matrix.shape)
+
+    # essai création phrase
+    p1 = creer_phrase1(dist_matrix, e1)
+    print(p1)
+
     # *****************************
-    #->selectionner uniquement les mots qui ont une longueur mamximale de 10 lettres (moyenne en anglais)
+    #->selectionner uniquement les mots qui ont une longueur maximale de 10 lettres (moyenne en anglais)
     
     

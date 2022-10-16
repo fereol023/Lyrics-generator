@@ -165,14 +165,17 @@ def preparation_commentaires(comments) :
         mat_freq.append(elt)
     
     mat_freq = np.array(mat_freq)
-    #mat_freq = mat_freq/np.sum(mat_freq, axis=)
+    # calculer les freq relatives en divisant par le nombre de mots sur la ligne
+    denom = np.sum(mat_freq, axis=1)
+    denom[-1] = 1 # pour la ligne de '.' qui n'a que des zéros
     #print(np.sum(mat_freq, axis=1))
+    mat_freq = mat_freq/denom
     print(line)
     print("FREQ DES MOTS SUIVANTS")
     # conversion en numpy array 
     print(mat_freq)
     print("Taille de la matrice : ",mat_freq.shape)
-    print(np.sum(mat_freq, axis=1)[-1])
+
     return l_mots_uniques, d_mots_access, mat_freq
 
 def gen_graph(dict_mots_accessibles) :
@@ -297,22 +300,23 @@ if __name__=="__main__" :
 
     gen_graph2(e1, e2, e3)
 
+
     #################
     # instancier un graphe avec la matrice eparse
     M = csr_matrix(e3)
     # appliquer l'algo de dijkstra
-    dist_matrix, predecessors = dijkstra(csgraph=M, directed=True, return_predecessors=True)
+    dist_matrix = dijkstra(csgraph=M, directed=True, return_predecessors=False)
     print(line)
     print("MATRICE DES DISTANCES")
     print(dist_matrix)
     print(line)
-    print("MATRICE DES PREDECESSEURS")
-    print(predecessors)
-    print("Taille de la matrice : ", dist_matrix.shape)
+    #print("MATRICE DES PREDECESSEURS")
+    #print(predecessors)
+    #print("Taille de la matrice : ", dist_matrix.shape)
 
     # essai création phrase
-    p1 = creer_phrase1(dist_matrix, e1)
-    print(p1)
+    #p1 = creer_phrase1(dist_matrix, e1)
+    #print(p1)
 
     # *****************************
     #->selectionner uniquement les mots qui ont une longueur maximale de 10 lettres (moyenne en anglais)

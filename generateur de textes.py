@@ -3,7 +3,7 @@ Created on Sun Sep 18 11:30:33 2022
 
 @author: gbeno
 """
-
+import random
 import numpy as np
 import pandas as pd
 import requests
@@ -223,31 +223,41 @@ def gen_graph2(liste_mot_unique, dict_mots_accessibles, mat_freq) :
     plt.savefig('plotgraph.png', dpi=300)
     plt.show()
 
-def creer_phrase1(mat_dist, liste_mots_uniq):
+def pick_forward(vector):
+    #vector = np.array([0, 0, 5, 5, 6, 0, 8])
+    #vector = vector / np.sum(vector)
+    L = []
+    vector2 = []
 
-    longueur_phrase = 5
-    indice_depart = 0
+    for v in vector:
+        vector2.append(v)
+    #print(vector2)
+
+    for elt in vector:
+        if elt != 0.:
+            L.append(elt)
+    # print(L)
+    k = random.choice(L)
+    return vector2.index(k)
+
+def creer_phrase1(mat_dist, liste_mots_uniq, mot_depart, longueur_phrase):
+
+    ind_dep = liste_mots_uniq.index(mot_depart)
     k = 0
     phrase = []
-    ligne = mat_dist[indice_depart, ]
-    phrase.append(liste_mots_uniq[indice_depart])
+    ligne = mat_dist[ind_dep, ]
+    phrase.append(liste_mots_uniq[ind_dep])
 
     while k < longueur_phrase:
-        # indice de la distance minimale sur la ligne
-        indice_min = np.argmin(ligne)
-        # test sur la distance minimum
-        d_min = ligne[indice_min]
-        # si c'est 0 alors retirer d_min de la liste et refaire argmin
-        if d_min == 0:
-            d_min = 1
-        print(d_min)
-        # recupérer le mot et l'ajouter à la phrase
-        print(indice_min)
-        phrase.append(liste_mots_uniq[indice_min])
+        # choix d'un indice au hasard
+        ind = pick_forward(ligne)
+        #print(ind)
+        phrase.append(liste_mots_uniq[ind])
         # aller à la ligne du mot ayant cet indice
-        ligne = mat_dist[indice_min, ]
+        ligne = mat_dist[ind, ]
         k += 1
     print('ok')
+
     return phrase
 
 if __name__=="__main__" :
@@ -260,7 +270,7 @@ if __name__=="__main__" :
     
     # selction de la colonne de commentaires
     comments = df['comments'].values
-    comments = comments[150:172,]  # 150 à 151 160 170:172 # peu pas afficher + de 500 points
+    #comments = comments[150:172,]  # 150 à 151 160 170:172 # peu pas afficher + de 500 points
     print(comments)
     
     # liste_mots_par_commentaire = liste_mots_par_commentaire(comments)
@@ -298,7 +308,7 @@ if __name__=="__main__" :
     
     e1, e2, e3 = preparation_commentaires(comments)
 
-    gen_graph2(e1, e2, e3)
+    #gen_graph2(e1, e2, e3)
 
 
     #################
@@ -315,9 +325,13 @@ if __name__=="__main__" :
     #print("Taille de la matrice : ", dist_matrix.shape)
 
     # essai création phrase
-    #p1 = creer_phrase1(dist_matrix, e1)
-    #print(p1)
+    cle = "kamala"
+    p1 = creer_phrase1(e3, e1, cle, 10)
+    print(p1)
 
+    ## >>>> next step mettre la phrase + proba de la phrase = produit des probas de la matrice
+    ## >>>> also : modifier la fonction creer_phrase1() pour qu'elle prenne le mot en paramètre directement
+    #print(e1.index('harris'))
     # *****************************
     #->selectionner uniquement les mots qui ont une longueur maximale de 10 lettres (moyenne en anglais)
     

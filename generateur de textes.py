@@ -18,6 +18,12 @@ from collections import Counter
 # module complémentaire
 from networkx_base import generation_couleur_aleatoire, generation_couleur_aretes_aleatoire, change_taille_sommets
 
+# pour la traduction
+import deepl
+auth_key = "59230f7d-a271-4748-2571-32a2d0e6c3c2:fx"
+translator = deepl.Translator(auth_key)
+
+
 line = "======="*5
 
 def liste_mots_par_commentaire(comments) :
@@ -238,27 +244,30 @@ def pick_forward(vector):
             L.append(elt)
     # print(L)
     k = random.choice(L)
-    return vector2.index(k)
+    return vector2.index(k), k
 
 def creer_phrase1(mat_dist, liste_mots_uniq, mot_depart, longueur_phrase):
 
     ind_dep = liste_mots_uniq.index(mot_depart)
     k = 0
     phrase = []
+    proba_phrase = 1
     ligne = mat_dist[ind_dep, ]
     phrase.append(liste_mots_uniq[ind_dep])
 
     while k < longueur_phrase:
         # choix d'un indice au hasard
-        ind = pick_forward(ligne)
+        ind, prob = pick_forward(ligne)
         #print(ind)
         phrase.append(liste_mots_uniq[ind])
         # aller à la ligne du mot ayant cet indice
         ligne = mat_dist[ind, ]
+        # calcul de la proba
+        proba_phrase = proba_phrase * prob
         k += 1
     print('ok')
 
-    return phrase
+    return phrase, proba_phrase
 
 if __name__=="__main__" :
     # Lecture de la bdd
@@ -325,9 +334,12 @@ if __name__=="__main__" :
     #print("Taille de la matrice : ", dist_matrix.shape)
 
     # essai création phrase
-    cle = "kamala"
-    p1 = creer_phrase1(e3, e1, cle, 10)
-    print(p1)
+    cle = random.choice(e1) # ou preciser le mot de départ
+    phr1, proba_phr1 = creer_phrase1(e3, e1, cle, 7)
+    print(proba_phr1)
+    phr1 = " ".join(phr1)+"."
+    result = translator.translate_text(phr1, target_lang="FR")
+    print(result.text)
 
     ## >>>> next step mettre la phrase + proba de la phrase = produit des probas de la matrice
     ## >>>> also : modifier la fonction creer_phrase1() pour qu'elle prenne le mot en paramètre directement

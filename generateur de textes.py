@@ -34,7 +34,7 @@ def liste_mots_par_commentaire(comments) :
     '''
     for i in range(len(comments)) : 
         liste_de_mots = []
-        for comment in comments : 
+        for comment in comments :
             mot = comment.split(sep=" ")
             liste_de_mots.append(mot)
     return liste_de_mots
@@ -45,7 +45,7 @@ def liste_mots_exhaustive(comments) :
     Renvoie une liste qui contient tous les mots employés dans comments sans répétition
     '''
     liste_de_mots = []
-    for comment in comments : 
+    for comment in comments :
         phrase = comment.split(sep=" ")
         for mot in phrase :
             # ajoute si le mot n'était pas présent dans la liste
@@ -269,9 +269,15 @@ def creer_phrase1(mat_dist, liste_mots_uniq, mot_depart, longueur_phrase):
 
     return phrase, proba_phrase
 
-if __name__=="__main__" :
+def distance_entre(mot1,mot2, liste_unique, mat_dist) :
+    i = liste_unique.index(mot1)
+    j = liste_unique.index(mot2)
+    return mat_dist[i, j]
+
+if __name__=="__main__":
     # Lecture de la bdd
-    url = "https://raw.githubusercontent.com/fereol023/Comments-generator/main/vp_debate.csv"
+    #url = "https://raw.githubusercontent.com/fereol023/Comments-generator/main/vp_debate.csv"
+    url = "https://raw.githubusercontent.com/fereol023/Comments-generator/main/all_debates.csv"
     download = requests.get(url).content
     df = pd.read_csv(io.StringIO(download.decode()))
     print(df.head(10))
@@ -317,7 +323,7 @@ if __name__=="__main__" :
     
     e1, e2, e3 = preparation_commentaires(comments)
 
-    #gen_graph2(e1, e2, e3)
+    gen_graph2(e1, e2, e3)
 
 
     #################
@@ -334,8 +340,9 @@ if __name__=="__main__" :
     #print("Taille de la matrice : ", dist_matrix.shape)
 
     # essai création phrase
-    cle = random.choice(e1) # ou preciser le mot de départ
-    phr1, proba_phr1 = creer_phrase1(e3, e1, cle, 7)
+    #cle = random.choice(e1) # ou preciser le mot de départ
+    cle = "kamala"
+    phr1, proba_phr1 = creer_phrase1(e3, e1, cle, 6)
     print(proba_phr1)
     phr1 = " ".join(phr1)+"."
     result = translator.translate_text(phr1, target_lang="FR")
@@ -346,5 +353,12 @@ if __name__=="__main__" :
     #print(e1.index('harris'))
     # *****************************
     #->selectionner uniquement les mots qui ont une longueur maximale de 10 lettres (moyenne en anglais)
-    
-    
+
+    ## distance entre deux mots
+    mot1 = "kamala"
+    mot2 = "horrible"
+    dist = distance_entre(mot1, mot2, e1, dist_matrix)
+    print('En partant de {0}, on a {2} de chance de passer par le mot {1}.'.format(mot1, mot2, dist))
+    ### en partant de Kamala on a 1 chance sur 4 de passer par le mot horrible
+
+    ### c'est quoi mat distr???

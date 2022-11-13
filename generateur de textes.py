@@ -3,209 +3,33 @@ Created on Sun Sep 18 11:30:33 2022
 
 @author: gbeno
 """
+import io
 import random
+import requests
 import numpy as np
 import pandas as pd
-import requests
-import io
-
 import networkx as nx
-from scipy.sparse import csr_matrix
-from scipy.sparse.csgraph import dijkstra
 import matplotlib.pyplot as plt
-from collections import Counter
+from math import log
+from statistics import mean, stdev
 
-# module complémentaire
-from networkx_base import generation_couleur_aleatoire, generation_couleur_aretes_aleatoire, change_taille_sommets
+# modules complémentaires
+from preprocessing import liste_des_mots_debut, liste_des_mots_fin
+from preprocessing import preparation_commentaires, filtrer_commentaires
+from networkx_base import generation_couleur_aleatoire, generation_couleur_aretes_aleatoire
+from networkx_base import generation_couleur_themes, change_taille_sommets
+from robot import requete_yahoo
 
 # pour la traduction
 import deepl
+
 auth_key = "59230f7d-a271-4748-2571-32a2d0e6c3c2:fx"
 translator = deepl.Translator(auth_key)
 
-
-line = "======="*5
-
-def liste_mots_par_commentaire(comments) :
-    '''
-    A partir des commentaires (colonne pandas), génère une liste l1 de liste l2.
-    l1 est la liste des phrases
-    l2 est la liste des mots dans une phrase
-    '''
-    for i in range(len(comments)) : 
-        liste_de_mots = []
-        for comment in comments :
-            mot = comment.split(sep=" ")
-            liste_de_mots.append(mot)
-    return liste_de_mots
+line = "=======" * 5
 
 
-def liste_mots_exhaustive(comments) : 
-    '''
-    Renvoie une liste qui contient tous les mots employés dans comments sans répétition
-    '''
-    liste_de_mots = []
-    for comment in comments :
-        phrase = comment.split(sep=" ")
-        for mot in phrase :
-            # ajoute si le mot n'était pas présent dans la liste
-            if mot not in liste_de_mots :    
-                liste_de_mots.append(mot)
-            #print(liste_de_mots)
-    # ajouter un "." car utile après
-    liste_de_mots.append(".")
-    return liste_de_mots
-
-
-def mots_accessibles(cle, liste_mots_par_commentaire) : 
-    '''
-    Renvoie la liste des mots accessibles depuis le mot cle dans la liste des 
-    commentaires
-    '''
-    liste_mots_accessibles = []
-    for phrase in liste_mots_par_commentaire :
-        #print(phrase)
-        for mot in phrase :
-            if mot == cle :
-                # récupere l'indice du mot 
-                index = phrase.index(mot)
-                #print(mot, index)
-                index += 1 
-      
-                #/!\ si c'est le dernier mot de la phrase le mot_a_droite devient un "."
-                if index == len(phrase) : 
-                    mot_a_droite = "."
-                else :
-                    mot_a_droite = phrase[index]
-      
-                #print(mot_a_droite)
-                # ajoute à la liste des mots accessibles depuis la clé
-                # si le mot n'est pas déja dans la liste
-                if mot_a_droite not in liste_mots_accessibles :
-                    liste_mots_accessibles.append(mot_a_droite)
-                    
-            else : 
-                pass
-            
-    return liste_mots_accessibles
-
-def dict_mots_accessibles(liste_mots_exhaustive, liste_mots_par_commentaire) :
-    # pour chaque mot dans la liste des mots unique, on considère le mot 
-    # comme clé et on applique la fonction mots_accessibles
-    D1 = {}
-    for i in range(len(liste_mots_exhaustive)) : 
-        cle = liste_mots_exhaustive[i]
-        mots_atteignables = mots_accessibles(cle, liste_mots_par_commentaire)
-        D1[cle] = mots_atteignables
-    #print(D1)
-    return D1
-        
-        
-def vect_freq(cle, liste_mots_exhaustive, liste_mots_par_commentaire) :
-    # retourne une liste en sortie 
-    # initialise un vecteur vide de même longueur que la liste exhaustive de mots
-    vect = [0]*len(liste_mots_exhaustive)
-    #print(vect)
-    # liste les mots acessibles depuis cette clé
-    cle_mots_atteignables = mots_accessibles(cle, liste_mots_par_commentaire)
-    #print(cle_mots_atteignables)
-    # compte le nombre d'occurences de chaque mot atteignable
-    D = Counter(cle_mots_atteignables)
-    #print(D)
-    
-    for mot in list(D.keys()) :
-        # pour chaque mot atteignable, obtenir l'indice du mot dans la liste exhaustive
-        indice = liste_mots_exhaustive.index(mot)
-        # utiliser l'indice pour inputer le nombre d'occurences
-        vect[indice] = D[mot]
-    
-    #print(vect)
-    return vect
-    
-
-def dico_freq(liste_mots_exhaustive, liste_mots_par_commentaire) :
-    # retourne un dictionnaire des frequences des mots à droite
-    Dico_freq = dict()
-    
-    #for mot in liste_mots_exhaustive : 
-    #    Dico_freq[mot] = vect_freq(mot, liste_mots_exhaustive, liste_mots_par_commentaire)
-    
-    for j in range(len(liste_mots_exhaustive)) :
-        mot_cle = liste_mots_exhaustive[j]
-        Dico_freq[mot_cle] = vect_freq(mot_cle, liste_mots_exhaustive, liste_mots_par_commentaire)
-    
-    return Dico_freq
-
-
-def preparation_commentaires(comments) :
-    '''
-    fonction de preparation des commentaires
-    -----------
-    parametres :
-    une colonne de commentaires format pandas
-    -----------
-    renvoie :
-    1- la liste exhaustive des mots uniques
-    2- un dictionnaire des mots accessibles depuis chaque mot : voisins sortants
-    3- une matrice des frequences/probas : poids
-    '''
-    l_mpc = liste_mots_par_commentaire(comments)
-    l_mots_uniques = liste_mots_exhaustive(comments)
-    
-    d_mots_access = dict_mots_accessibles(l_mots_uniques, l_mpc)
-    d_freq_mots_access = dico_freq(l_mots_uniques, l_mpc) 
-    
-    
-    print(line)
-    print("LISTE DES EXHAUSTIVE MOTS")
-    print(l_mots_uniques)
-    print(len(l_mots_uniques))
-    print(line)
-    print("DICT DES MOTS SUIVANTS")
-    for d in d_mots_access.items():
-        print(d)
-    
-    mat_freq = []
-    # ajouer la liste des frequences pour faire un tableau
-    for elt in d_freq_mots_access.values() :
-        mat_freq.append(elt)
-    
-    mat_freq = np.array(mat_freq)
-    # calculer les freq relatives en divisant par le nombre de mots sur la ligne
-    denom = np.sum(mat_freq, axis=1)
-    denom[-1] = 1 # pour la ligne de '.' qui n'a que des zéros
-    #print(np.sum(mat_freq, axis=1))
-    mat_freq = mat_freq/denom
-    print(line)
-    print("FREQ DES MOTS SUIVANTS")
-    # conversion en numpy array 
-    print(mat_freq)
-    print("Taille de la matrice : ",mat_freq.shape)
-
-    return l_mots_uniques, d_mots_access, mat_freq
-
-def gen_graph(dict_mots_accessibles) :
-    
-    G = nx.DiGraph()
-    # ajout des sommets au graphe
-    G.add_nodes_from(list(dict_mots_accessibles.keys()))
-    # création des aretes
-    for key in dict_mots_accessibles.keys() :
-        mots_access = dict_mots_accessibles[key]
-        for v in mots_access :
-            G.add_edge(key, v)
-    
-    # dessin
-    color_map = generation_couleur_aleatoire(G)
-    color_map_aretes = generation_couleur_aretes_aleatoire(G)
-    node_s = change_taille_sommets(G)
-    nx.draw(G, with_labels=False, node_size=node_s,node_color=color_map,edge_color=color_map_aretes)
-
-    plt.savefig('plotgraph.png', dpi=300)
-    plt.show()
-
-def gen_graph2(liste_mot_unique, dict_mots_accessibles, mat_freq) :
-
+def gen_graph(liste_mot_unique, dict_mots_accessibles, mat_freq, themes):
     G = nx.DiGraph()
     # ajout des sommets au graphe
     G.add_nodes_from(list(dict_mots_accessibles.keys()))
@@ -219,25 +43,62 @@ def gen_graph2(liste_mot_unique, dict_mots_accessibles, mat_freq) :
             poids = mat_freq[ind_row, ind_col]
             # creer l'arete
             G.add_edge(key, v, weight=poids)
-            #G.add_edge(key, v)
+            # G.add_edge(key, v)
+    print(line)
+    print("CARACTERISTIQUES DU GRAPHE")
+    print("Nombre d'arêtes : ", G.number_of_edges())
+    print("Nombre de sommets : ", G.number_of_nodes())
+    print("Densité de G : ", nx.density(G))
+    if nx.is_strongly_connected(G): # teste la connexité
+        print("Graphe connexe\nLongueur chemin max (diamètre) : ", nx.diameter(G))
+        # si diamètre < log(G.number_of_nodes) : graphe petit monde
+        if nx.diameter(G) < log(G.number_of_nodes()):
+            print("Graphe petit monde")
+    else:
+        print("Graphe non connexe, diamètre infini")
 
-    # dessin
-    color_map = generation_couleur_aleatoire(G)
-    color_map_aretes = generation_couleur_aretes_aleatoire(G)
-    node_s = change_taille_sommets(G)
-    nx.draw(G, with_labels=False, node_size=node_s,node_color=color_map,edge_color=color_map_aretes)
+    # ====distribution empirique des degrés
+    # print(nx.degree(G))
+    dict_degrees = dict(nx.degree(G))
+    # print(dict_degrees)
+    val_degrees = dict_degrees.values()
+    # print(val_degrees)
+    # valeurs uniques des degrés
+    val_uniq_degrees = []
+    for d in val_degrees:
+        if d not in val_uniq_degrees:
+            val_uniq_degrees.append(int(d))
+    print("Degrés recensés : \n", sorted(val_uniq_degrees))
+    # liste des frequences des degrés
+    print("Fréquence absolues des degrés :\n", nx.degree_histogram(G))
+    # autres statistiques empiriques
+    print("Degré min : ", min(val_degrees))
+    print("Degré max : ", max(val_degrees))
+    print("Degré moyen (empirique) : ", mean(val_degrees))
+    print("Ecart-type (empirique) : ", stdev(val_degrees))
+    # si max(degré) < log(G.number_of_nodes) : graphe parcimonieux
+    if max(val_degrees) < log(G.number_of_nodes()):
+        print("Graphe parcimonieux")
+    # plt.bar(np.arange(max(val_degrees)+1), nx.degree_histogram(G)/np.sum(nx.degree_histogram(G)))
+    plt.hist(nx.degree_histogram(G), density=True)
+    plt.title("Distribution empirique des degrés")
+    plt.show()
+
+    # ====dessin graphe
+    # color_map = generation_couleur_aleatoire(G)
+    color_map_themes = generation_couleur_themes(G, themes)
+    # color_map_aretes = generation_couleur_aretes_aleatoire(G)
+    # node_s = change_taille_sommets(G)
+    nx.draw(G, with_labels=False, node_size=30, node_color=color_map_themes)
     plt.savefig('plotgraph.png', dpi=300)
     plt.show()
 
 def pick_forward(vector):
-    #vector = np.array([0, 0, 5, 5, 6, 0, 8])
-    #vector = vector / np.sum(vector)
     L = []
     vector2 = []
-
     for v in vector:
         vector2.append(v)
-    #print(vector2)
+    # print(vector2)
 
     for elt in vector:
         if elt != 0.:
@@ -246,8 +107,8 @@ def pick_forward(vector):
     k = random.choice(L)
     return vector2.index(k), k
 
-def creer_phrase1(mat_dist, liste_mots_uniq, mot_depart, longueur_phrase):
 
+def creer_phrase1(mat_dist, liste_mots_uniq, mot_depart, longueur_phrase):
     ind_dep = liste_mots_uniq.index(mot_depart)
     k = 0
     phrase = []
@@ -258,107 +119,98 @@ def creer_phrase1(mat_dist, liste_mots_uniq, mot_depart, longueur_phrase):
     while k < longueur_phrase:
         # choix d'un indice au hasard
         ind, prob = pick_forward(ligne)
-        #print(ind)
+        # print(ind)
         phrase.append(liste_mots_uniq[ind])
         # aller à la ligne du mot ayant cet indice
         ligne = mat_dist[ind, ]
         # calcul de la proba
         proba_phrase = proba_phrase * prob
         k += 1
-    print('ok')
-
+    # print('ok')
     return phrase, proba_phrase
 
-def distance_entre(mot1,mot2, liste_unique, mat_dist) :
-    i = liste_unique.index(mot1)
-    j = liste_unique.index(mot2)
-    return mat_dist[i, j]
 
-if __name__=="__main__":
+def creer_phrase2(mat_transition, liste_mots_uniq, max_iter=100):
+    # on choisit un mot de depart au hasard dans la liste des debuts possibles
+    mot_depart = random.choice(liste_des_mots_debut(comments))
+    # on récupère son indice
+    ind_depart = liste_mots_uniq.index(mot_depart)
+    phrase = []  # on crée une phrase vide
+    # et on ajoute le mot de départ à la phrase
+    phrase.append(mot_depart)
+    # on récupère la ligne de départ dans la matrice de transition
+    ligne = mat_transition[ind_depart,]
+    #
+    proba_phrase = 1
+
+    k = 0
+    continuer = True
+    while continuer and len(phrase) <= max_iter: # limiter la longueur des phrases pour éviter une marche infinie
+        # choix d'un mot au hasard dans la liste des mots suivants possibles
+        ind, prob = pick_forward(ligne)
+        # print(ind)
+        # ajout du mot choisi à la phrase en cours
+        phrase.append(liste_mots_uniq[ind])
+        # actualisation de la proba
+        proba_phrase = proba_phrase * prob
+        if liste_mots_uniq[ind] in liste_des_mots_fin(comments):
+            continuer = False
+        else:
+            # aller à la ligne du mot ayant cet indice
+            ligne = mat_transition[ind, ]
+        k += 1
+    # print('ok')
+    return phrase, proba_phrase
+
+def ecrire(trials, matrice_transition, liste_mots_uniques):
+    """
+    Fonction principale qui génère les phrases
+    Elle écrit les phrases générées dans un fichier .txt
+    """
+    print("PHRASES GENEREES")
+    fichier = open("phrases generees.txt", 'w')
+    R = 0  # compteur de phrases sensées
+    for i in range(trials):
+        print(line)
+        phrase, proba_phrase = creer_phrase2(matrice_transition, liste_mots_uniques)
+        # print("Produit probas de transition : ", proba_phr1)
+        phrase = " ".join(phrase)
+        # result = translator.translate_text(phrase, target_lang="FR")
+        # print(result.text)
+        nombre = requete_yahoo(phrase, "resultat.html")
+
+        if nombre != 0:
+            R += 1
+            fichier.write(phrase+"\n")
+    fichier.close()
+    print(line)
+    print("Taux de phrases ayant une sémantique correcte : ", round(R * 100 / trials, 2), " %")
+
+
+def poids_phrase(G, chemin):
+    return nx.path_weight(G, chemin)
+
+
+if __name__ == "__main__":
     # Lecture de la bdd
-    #url = "https://raw.githubusercontent.com/fereol023/Comments-generator/main/vp_debate.csv"
+    # url = "https://raw.githubusercontent.com/fereol023/Comments-generator/main/vp_debate.csv"
     url = "https://raw.githubusercontent.com/fereol023/Comments-generator/main/all_debates.csv"
     download = requests.get(url).content
     df = pd.read_csv(io.StringIO(download.decode()))
-    print(df.head(10))
-    print(df.shape)
-    
-    # selction de la colonne de commentaires
+    # print(df.head(10))
+    # print(df.shape)
+
+    # selection de la colonne de commentaires et prétraitement
     comments = df['comments'].values
-    #comments = comments[150:172,]  # 150 à 151 160 170:172 # peu pas afficher + de 500 points
-    print(comments)
-    
-    # liste_mots_par_commentaire = liste_mots_par_commentaire(comments)
-    # print(liste_mots_par_commentaire)
-    #
-    # liste_mots_exhaustive = liste_mots_exhaustive(comments)
-    # print(liste_mots_exhaustive)
-    # print(len(liste_mots_exhaustive))
-    #
-    # dico_mots_accessibles = dict_mots_accessibles(liste_mots_exhaustive, liste_mots_par_commentaire)
-    # gen_graph(dico_mots_accessibles)
+    # comments = comments[150:160, ]  # 150 à 160
+    themes = ["joe", "biden", "donald", "trump", "kamala", "harris", "mike", "pence"]
+    comments = filtrer_commentaires(comments, themes)
+    # print(comments)
+    comments = comments[0].values
 
-    # compteur de mots et renvoie un dict avec le nombre d'occurences
-    #occurrences = Counter(liste_mots_exhaustive)
-    #print(occurrences)
-    # PS supprimer lesmots trop longs
-    
-    # enregister la liste des valeurs uniques des mots
-    #mots_uniques = list(occurrences.keys())
-    #print(mots_uniques)
-    
-    # liste des mots accessibles depuis une clé
-    #a = mots_accessibles("harris", liste_mots_par_commentaire)
-    #print(line)
-    #print(a)
-    
-    # dictionnaire de l'ensemble des mots accessibles depuis un mot
-    #D1 = dict_mots_accessibles(liste_mots_exhaustive, liste_mots_par_commentaire)
-    #print(D1["trump"])
-    
-    # dictionnaire des fréquences des mots atteignables
-    #print(line)
-    #vect_freq("famous", liste_mots_exhaustive, liste_mots_par_commentaire)
-    #dico_freq(liste_mots_exhaustive, liste_mots_par_commentaire)
-    
-    e1, e2, e3 = preparation_commentaires(comments)
-
-    gen_graph2(e1, e2, e3)
-
-
-    #################
-    # instancier un graphe avec la matrice eparse
-    M = csr_matrix(e3)
-    # appliquer l'algo de dijkstra
-    dist_matrix = dijkstra(csgraph=M, directed=True, return_predecessors=False)
-    print(line)
-    print("MATRICE DES DISTANCES")
-    print(dist_matrix)
-    print(line)
-    #print("MATRICE DES PREDECESSEURS")
-    #print(predecessors)
-    #print("Taille de la matrice : ", dist_matrix.shape)
-
-    # essai création phrase
-    #cle = random.choice(e1) # ou preciser le mot de départ
-    cle = "kamala"
-    phr1, proba_phr1 = creer_phrase1(e3, e1, cle, 6)
-    print(proba_phr1)
-    phr1 = " ".join(phr1)+"."
-    result = translator.translate_text(phr1, target_lang="FR")
-    print(result.text)
-
-    ## >>>> next step mettre la phrase + proba de la phrase = produit des probas de la matrice
-    ## >>>> also : modifier la fonction creer_phrase1() pour qu'elle prenne le mot en paramètre directement
-    #print(e1.index('harris'))
-    # *****************************
-    #->selectionner uniquement les mots qui ont une longueur maximale de 10 lettres (moyenne en anglais)
-
-    ## distance entre deux mots
-    mot1 = "kamala"
-    mot2 = "horrible"
-    dist = distance_entre(mot1, mot2, e1, dist_matrix)
-    print('En partant de {0}, on a {2} de chance de passer par le mot {1}.'.format(mot1, mot2, dist))
-    ### en partant de Kamala on a 1 chance sur 4 de passer par le mot horrible
-
-    ### c'est quoi mat distr???
+    # L : liste des mots uniques
+    # D : dictionnaire des mots accessibles
+    # T : matrice de transition
+    L, D, T = preparation_commentaires(comments)
+    gen_graph(L, D, T, themes)
+    ecrire(75, T, L)

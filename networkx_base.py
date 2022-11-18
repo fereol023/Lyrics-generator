@@ -31,7 +31,7 @@ def generation_couleur_themes(G, themes):
         if node in themes:
             color_map.append('red')
         else:
-            color_map.append((0.75,0.87,0.93,1))
+            color_map.append((0,0.4,0,1))
     return color_map
 
 def generation_couleur_aretes_aleatoire(G):

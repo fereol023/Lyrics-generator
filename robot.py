@@ -8,7 +8,7 @@ def requete_yahoo(chaine,destination):
     }
 
     chaine = '"' + chaine + '"'
-    print("chaine a rechercher : ", chaine)
+    # print("chaine a rechercher : ", chaine)
 
     params = {
     'p': chaine,
@@ -24,7 +24,7 @@ def requete_yahoo(chaine,destination):
             print("cette chaine n'obtient aucun resultat")    
         nombre = html.text.split('<span style="color:inherit;" class=" fz-14 lh-22">')[1].split("</span>")[0]
         nombre = int(nombre.replace('\xa0',"").split(" ")[1].split("r")[0])
-        print("Nombre de résultats : ",nombre)
+        # print("Nombre de résultats : ",nombre)
         return nombre
 
     #except UnicodeEncodeError:
@@ -32,7 +32,7 @@ def requete_yahoo(chaine,destination):
 
     except:
         nombre = 0
-        print("Nombre de résultats : ",nombre)
+        # print("Nombre de résultats : ",nombre)
         return 0    
     
     
